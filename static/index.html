@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ODIADEV - Voice AI for Africa | Nigerian TTS Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            /* ODIADEV Brand Colors */
+            --odiadev-navy: #1a1f3a;
+            --odiadev-dark-navy: #0f1425;
+            --odiadev-deep-navy: #0a0e1a;
+            --odiadev-gold: #f4d03f;
+            --odiadev-light-gold: #f7dc6f;
+            --odiadev-accent-blue: #2980b9;
+            --odiadev-white: #ffffff;
+            --odiadev-gray: #85929e;
+            --odiadev-success: #27ae60;
+            --odiadev-error: #e74c3c;
+            --odiadev-warning: #f39c12;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--odiadev-deep-navy) 0%, var(--odiadev-navy) 100%);
+            color: var(--odiadev-white);
+            min-height: 100vh;
+            padding: 20px;
+            background-attachment: fixed;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(244, 208, 63, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(41, 128, 185, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px 0;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--odiadev-gold) 0%, var(--odiadev-light-gold) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 8px 25px rgba(244, 208, 63, 0.3);
+        }
+        
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 3px solid var(--odiadev-navy);
+            border-radius: 50%;
+            border-top-color: transparent;
+            border-right-color: transparent;
+        }
+        
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border: 2px solid var(--odiadev-navy);
+            border-radius: 50%;
+            border-bottom-color: transparent;
+            border-left-color: transparent;
+        }
+        
+        .logo-text {
+            font-size: 42px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--odiadev-gold) 0%, var(--odiadev-light-gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+        }
+        
+        .tagline {
+            font-size: 18px;
+            color: var(--odiadev-gray);
+            font-weight: 300;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(244, 208, 63, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+            border-color: rgba(244, 208, 63, 0.2);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--odiadev-gold);
+        }
+        
+        input, select, textarea, button {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid rgba(244, 208, 63, 0.2);
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input, select, textarea {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--odiadev-white);
+            backdrop-filter: blur(10px);
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--odiadev-gold);
+            box-shadow: 0 0 0 3px rgba(244, 208, 63, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        input::placeholder, textarea::placeholder {
+            color: var(--odiadev-gray);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--odiadev-gold) 0%, var(--odiadev-light-gold) 100%);
+            color: var(--odiadev-navy);
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(244, 208, 63, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--odiadev-accent-blue) 0%, #3498db 100%);
+            color: var(--odiadev-white);
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 10px 25px rgba(41, 128, 185, 0.4);
+        }
+        
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .voice-btn {
+            padding: 16px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(244, 208, 63, 0.2);
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .voice-btn:hover {
+            background: rgba(244, 208, 63, 0.1);
+            border-color: var(--odiadev-gold);
+            transform: translateY(-2px);
+        }
+        
+        .voice-btn.active {
+            background: linear-gradient(135deg, var(--odiadev-gold) 0%, var(--odiadev-light-gold) 100%);
+            color: var(--odiadev-navy);
+            border-color: var(--odiadev-gold);
+            font-weight: 600;
+        }
+        
+        audio {
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+        
+        .status {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-top: 16px;
+            text-align: center;
+            font-weight: 500;
+            border: 1px solid;
+        }
+        
+        .status.success {
+            background: rgba(39, 174, 96, 0.1);
+            border-color: var(--odiadev-success);
+            color: var(--odiadev-success);
+        }
+        
+        .status.error {
+            background: rgba(231, 76, 60, 0.1);
+            border-color: var(--odiadev-error);
+            color: var(--odiadev-error);
+        }
+        
+        .status.info {
+            background: rgba(244, 208, 63, 0.1);
+            border-color: var(--odiadev-gold);
+            color: var(--odiadev-gold);
+        }
+        
+        .api-key-display {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(244, 208, 63, 0.2);
+            padding: 18px;
+            border-radius: 12px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            word-break: break-all;
+            margin-top: 20px;
+            position: relative;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .logo-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .logo-text {
+                font-size: 32px;
+            }
+        }
+        
+        .demo-section {
+            text-align: center;
+            padding: 30px 0;
+        }
+        
+        .demo-btn {
+            background: linear-gradient(135deg, var(--odiadev-warning) 0%, #e67e22 100%);
+            color: var(--odiadev-white);
+            font-size: 18px;
+            padding: 18px 36px;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+        
+        .demo-btn:hover {
+            box-shadow: 0 10px 25px rgba(243, 156, 18, 0.4);
+        }
+        
+        .feature-highlight {
+            background: linear-gradient(135deg, rgba(244, 208, 63, 0.1) 0%, rgba(41, 128, 185, 0.1) 100%);
+            border: 1px solid rgba(244, 208, 63, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .feature-highlight h3 {
+            color: var(--odiadev-gold);
+            margin-bottom: 10px;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 8px 12px;
+            background: var(--odiadev-gold);
+            color: var(--odiadev-navy);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(244, 208, 63, 0.1);
+            border: 1px solid rgba(244, 208, 63, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--odiadev-gold);
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--odiadev-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .network-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 1000;
+        }
+        
+        .network-status.online {
+            background: var(--odiadev-success);
+            color: white;
+        }
+        
+        .network-status.offline {
+            background: var(--odiadev-error);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Network Status for Nigerian connections -->
+    <div id="networkStatus" class="network-status online">🌐 Online</div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo-icon"></div>
+                <div class="logo-text">ODIADEV</div>
+            </div>
+            <div class="tagline">Voice AI for Africa</div>
+        </div>
+        
+        <!-- Stats Overview -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">9+</div>
+                <div class="stat-label">Languages</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">18+</div>
+                <div class="stat-label">Voices</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">∞</div>
+                <div class="stat-label">API Calls</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">Nigeria</div>
+                <div class="stat-label">Focused</div>
+            </div>
+        </div>
+        
+        <!-- Demo Section (Always Visible) -->
+        <div class="card demo-section">
+            <h2>🚀 Try Demo (No Signup Required)</h2>
+            <p>Experience Nigerian TTS voices instantly - optimized for 2G networks</p>
+            <button class="demo-btn" onclick="showDemo()">Start Voice Demo</button>
+        </div>
+        
+        <!-- Demo Testing (Hidden initially) -->
+        <div class="card hidden" id="demoSection">
+            <h2>🎤 Demo - Nigerian Voice Synthesis</h2>
+            
+            <div class="form-group">
+                <label>Select Voice</label>
+                <div class="voice-grid">
+                    <div class="voice-btn active" data-voice="female">Ezinne (F)</div>
+                    <div class="voice-btn" data-voice="male">Abeo (M)</div>
+                    <div class="voice-btn" data-voice="igbo_female">Igbo (F)</div>
+                    <div class="voice-btn" data-voice="yoruba_male">Yoruba (M)</div>
+                    <div class="voice-btn" data-voice="hausa_female">Hausa (F)</div>
+                    <div class="voice-btn" data-voice="aria">Aria (US)</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="demoText">Enter Text (100 characters max for demo)</label>
+                <textarea id="demoText" placeholder="Type your message here...">Welcome to ODIADEV! Nigeria's premier voice AI platform for African languages.</textarea>
+            </div>
+            
+            <button onclick="testDemo()" id="demoBtn">🔊 Generate Voice</button>
+            
+            <audio id="demoPlayer" controls style="display: none;"></audio>
+            <div id="demoStatus"></div>
+        </div>
+        
+        <!-- Authentication Section -->
+        <div class="card" id="authSection">
+            <h2>🔐 Get Full Access</h2>
+            <p>Create an account to generate API keys and access unlimited Nigerian TTS</p>
+            
+            <div class="feature-highlight">
+                <h3>✨ Full Access Features</h3>
+                <p>• Unlimited API calls • 1000+ character limit • Priority support • Advanced voice controls</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="your@company.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Minimum 6 characters">
+            </div>
+            
+            <button id="loginBtn" onclick="handleLogin()">Log In</button>
+            <button id="signupBtn" class="btn-secondary" style="margin-top: 12px;" onclick="handleSignup()">Create Account</button>
+            
+            <div id="authStatus"></div>
+        </div>
+        
+        <!-- Main App (Hidden until authenticated) -->
+        <div class="main-grid hidden" id="appSection">
+            <!-- API Key Management -->
+            <div class="card">
+                <h2>🔑 API Key Management</h2>
+                
+                <div class="form-group">
+                    <label for="keyName">API Key Name</label>
+                    <input type="text" id="keyName" placeholder="Production TTS Key" value="Nigerian TTS API">
+                </div>
+                
+                <button onclick="generateKey()" id="generateKeyBtn">Generate New API Key</button>
+                
+                <div id="apiKeyDisplay"></div>
+                <div id="keyStatus"></div>
+                
+                <div style="margin-top: 24px;">
+                    <h3 style="color: var(--odiadev-gold); margin-bottom: 12px;">Your API Keys</h3>
+                    <div id="userKeys">Loading keys...</div>
+                </div>
+            </div>
+            
+            <!-- TTS Testing -->
+            <div class="card">
+                <h2>🎤 Test API Integration</h2>
+                
+                <div class="form-group">
+                    <label>Select Voice</label>
+                    <div class="voice-grid">
+                        <div class="voice-btn active" data-voice="female" data-api="true">Ezinne</div>
+                        <div class="voice-btn" data-voice="male" data-api="true">Abeo</div>
+                        <div class="voice-btn" data-voice="igbo_female" data-api="true">Igbo (F)</div>
+                        <div class="voice-btn" data-voice="yoruba_male" data-api="true">Yoruba (M)</div>
+                        <div class="voice-btn" data-voice="hausa_female" data-api="true">Hausa (F)</div>
+                        <div class="voice-btn" data-voice="aria" data-api="true">Aria</div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiText">Enter Text (1000 characters max)</label>
+                    <textarea id="apiText" placeholder="Test your API integration...">Sannu da zuwa! Welcome to ODIADEV, Nigeria's premier voice technology platform. We support Igbo, Yoruba, Hausa, and English with natural-sounding voices.</textarea>
+                </div>
+                
+                <button onclick="testAPI()" id="apiBtn">🔊 Test API Generation</button>
+                
+                <audio id="apiPlayer" controls style="display: none;"></audio>
+                <div id="apiStatus"></div>
+                
+                <div class="feature-highlight" style="margin-top: 20px;">
+                    <h3>💡 Integration Examples</h3>
+                    <p>Python • Node.js • cURL • Webhook • Real-time streaming</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Logout Button (Hidden until authenticated) -->
+        <div class="card hidden" id="logoutSection">
+            <button onclick="handleLogout()" class="btn-secondary">Sign Out</button>
+        </div>
+    </div>
+
+    <!-- NO HARDCODED SECRETS - Config loaded from backend -->
+    <script>
+        // Global config - loaded from backend API
+        let SUPABASE_CONFIG = null;
+        let supabase = null;
+        
+        let currentUser = null;
+        let selectedVoice = 'female';
+        let selectedApiVoice = 'female';
+        let currentApiKey = null;
+        
+        // DOM Elements
+        const authSection = document.getElementById('authSection');
+        const appSection = document.getElementById('appSection');
+        const logoutSection = document.getElementById('logoutSection');
+        const demoSection = document.getElementById('demoSection');
+        const networkStatus = document.getElementById('networkStatus');
+        
+        // Initialize app with network monitoring
+        initializeApp();
+        
+        async function initializeApp() {
+            // Monitor network for Nigerian connections
+            monitorNetworkStatus();
+            
+            // Load Supabase config from backend (NO HARDCODED SECRETS)
+            try {
+                const configResponse = await fetch('/api/config');
+                if (configResponse.ok) {
+                    SUPABASE_CONFIG = await configResponse.json();
+                    
+                    // Initialize Supabase with backend-provided config
+                    if (window.supabase && SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey) {
+                        supabase = window.supabase.createClient(
+                            SUPABASE_CONFIG.url, 
+                            SUPABASE_CONFIG.anonKey
+                        );
+                        
+                        // Check auth state
+                        checkAuthState();
+                    }
+                } else {
+                    console.warn('Supabase config not available - running in demo mode');
+                }
+            } catch (error) {
+                console.warn('Failed to load Supabase config:', error);
+            }
+        }
+        
+        function monitorNetworkStatus() {
+            function updateStatus() {
+                if (navigator.onLine) {
+                    networkStatus.textContent = '🌐 Online';
+                    networkStatus.className = 'network-status online';
+                } else {
+                    networkStatus.textContent = '📱 Offline';
+                    networkStatus.className = 'network-status offline';
+                }
+            }
+            
+            window.addEventListener('online', updateStatus);
+            window.addEventListener('offline', updateStatus);
+            updateStatus();
+        }
+        
+        async function checkAuthState() {
+            if (!supabase) return;
+            
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    currentUser = user;
+                    showApp();
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+            }
+        }
+        
+        function showDemo() {
+            demoSection.classList.remove('hidden');
+        }
+        
+        function showApp() {
+            authSection.classList.add('hidden');
+            appSection.classList.remove('hidden');
+            logoutSection.classList.remove('hidden');
+            loadUserKeys();
+        }
+        
+        function showAuth() {
+            authSection.classList.remove('hidden');
+            appSection.classList.add('hidden');
+            logoutSection.classList.add('hidden');
+        }
+        
+        // Voice Selection for Demo
+        document.querySelectorAll('.voice-btn:not([data-api])').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.voice-btn:not([data-api])').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedVoice = btn.dataset.voice;
+            });
+        });
+        
+        // Voice Selection for API
+        document.querySelectorAll('.voice-btn[data-api]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.voice-btn[data-api]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedApiVoice = btn.dataset.voice;
+            });
+        });
+        
+        // Demo TTS Testing (works without auth)
+        async function testDemo() {
+            const text = document.getElementById('demoText').value;
+            const btn = document.getElementById('demoBtn');
+            const player = document.getElementById('demoPlayer');
+            
+            if (!text.trim()) {
+                showStatus('demoStatus', 'Please enter some text to generate voice', 'error');
+                return;
+            }
+            
+            if (text.length > 100) {
+                showStatus('demoStatus', 'Demo limit: 100 characters maximum', 'error');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Generating...';
+            showStatus('demoStatus', 'Generating Nigerian voice... (Optimized for 2G)', 'info');
+            
+            try {
+                const response = await fetch('/demo/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        voice: selectedVoice
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    player.src = result.audio_url;
+                    player.style.display = 'block';
+                    player.play();
+                    
+                    showStatus('demoStatus', `✅ Voice generated successfully! (${result.character_count} characters)`, 'success');
+                } else {
+                    showStatus('demoStatus', 'Generation failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showStatus('demoStatus', 'Network error (check MTN/Airtel): ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔊 Generate Voice';
+            }
+        }
+        
+        // Authentication (only if Supabase available)
+        async function handleLogin() {
+            if (!supabase) {
+                showStatus('authStatus', 'Authentication not available in demo mode', 'error');
+                return;
+            }
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showStatus('authStatus', 'Please enter both email and password', 'error');
+                return;
+            }
+            
+            showStatus('authStatus', 'Signing in...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    showStatus('authStatus', 'Login failed: ' + error.message, 'error');
+                } else {
+                    currentUser = data.user;
+                    showApp();
+                    showStatus('authStatus', 'Login successful!', 'success');
+                }
+            } catch (error) {
+                showStatus('authStatus', 'Login error: ' + error.message, 'error');
+            }
+        }
+        
+        async function handleSignup() {
+            if (!supabase) {
+                showStatus('authStatus', 'Authentication not available in demo mode', 'error');
+                return;
+            }
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showStatus('authStatus', 'Please enter both email and password', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showStatus('authStatus', 'Password must be at least 6 characters', 'error');
+                return;
+            }
+            
+            showStatus('authStatus', 'Creating account...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    showStatus('authStatus', 'Signup failed: ' + error.message, 'error');
+                } else {
+                    showStatus('authStatus', 'Account created! Check your email to verify and then login.', 'success');
+                }
+            } catch (error) {
+                showStatus('authStatus', 'Signup error: ' + error.message, 'error');
+            }
+        }
+        
+        async function handleLogout() {
+            if (supabase) {
+                try {
+                    await supabase.auth.signOut();
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            }
+            
+            currentUser = null;
+            currentApiKey = null;
+            showAuth();
+        }
+        
+        // API Key Generation
+        async function generateKey() {
+            if (!supabase || !currentUser) {
+                showStatus('keyStatus', 'Please login first', 'error');
+                return;
+            }
+            
+            const keyName = document.getElementById('keyName').value;
+            
+            if (!keyName) {
+                showStatus('keyStatus', 'Please enter a name for your API key', 'error');
+                return;
+            }
+            
+            showStatus('keyStatus', 'Generating secure API key...', 'info');
+            
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                
+                const response = await fetch('/api/generate-key', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify({ name: keyName })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    currentApiKey = result.api_key;
+                    document.getElementById('apiKeyDisplay').innerHTML = `
+                        <div class="api-key-display">
+                            <strong style="color: var(--odiadev-gold);">Your API Key:</strong><br>
+                            <span style="color: var(--odiadev-white);">${result.api_key}</span>
+                            <button class="copy-btn" onclick="copyToClipboard('${result.api_key}')">
+                                📋 Copy
+                            </button>
+                        </div>
+                    `;
+                    showStatus('keyStatus', 'API key generated successfully!', 'success');
+                    loadUserKeys();
+                } else {
+                    showStatus('keyStatus', 'Failed to generate API key: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showStatus('keyStatus', 'Generation error: ' + error.message, 'error');
+            }
+        }
+        
+        // API TTS Testing
+        async function testAPI() {
+            const text = document.getElementById('apiText').value;
+            const btn = document.getElementById('apiBtn');
+            const player = document.getElementById('apiPlayer');
+            
+            if (!text.trim()) {
+                showStatus('apiStatus', 'Please enter text to test API', 'error');
+                return;
+            }
+            
+            if (!currentApiKey) {
+                showStatus('apiStatus', 'Please generate an API key first', 'error');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Processing...';
+            showStatus('apiStatus', 'Testing API integration...', 'info');
+            
+            try {
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': currentApiKey
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voice: selectedApiVoice,
+                        language: 'nigerian'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    player.src = result.audio_url;
+                    player.style.display = 'block';
+                    player.play();
+                    
+                    showStatus('apiStatus', `✅ API test successful! (${result.character_count} characters processed)`, 'success');
+                } else {
+                    showStatus('apiStatus', 'API test failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showStatus('apiStatus', 'API error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔊 Test API Generation';
+            }
+        }
+        
+        // Load User Keys
+        async function loadUserKeys() {
+            if (!supabase || !currentUser) return;
+            
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                
+                const response = await fetch('/api/user-keys', {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    const keysHtml = result.keys.map(key => `
+                        <div style="background: rgba(244, 208, 63, 0.1); border: 1px solid rgba(244, 208, 63, 0.2); padding: 12px; margin: 8px 0; border-radius: 8px;">
+                            <strong style="color: var(--odiadev-gold);">${key.name}</strong><br>
+                            <small style="color: var(--odiadev-gray);">Key: ${key.key_prefix}... | Used: ${key.usage_count} times</small>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('userKeys').innerHTML = keysHtml || '<p style="color: var(--odiadev-gray);">No API keys yet</p>';
+                } else {
+                    document.getElementById('userKeys').innerHTML = '<p style="color: var(--odiadev-error);">Failed to load keys</p>';
+                }
+            } catch (error) {
+                document.getElementById('userKeys').innerHTML = '<p style="color: var(--odiadev-error);">Error loading keys</p>';
+            }
+        }
+        
+        // Utility Functions
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    element.innerHTML = '';
+                }, 4000);
+            }
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showStatus('keyStatus', 'API key copied to clipboard!', 'success');
+            }).catch(() => {
+                alert('API key copied to clipboard!');
+            });
+        }
+    </script>
+    
+    <!-- Load Supabase only if needed -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+</body>
+</html>
