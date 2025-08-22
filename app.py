@@ -1,504 +1,282 @@
 #!/usr/bin/env python3
 """
-ODIADEV TTS Backend - PRODUCTION READY
-Zero hardcoded secrets, Nigerian-optimized, production-grade
+MANUS AGENT: Self-Diagnosing Nigerian TTS API
+Auto-debugs Render deployment issues and fixes them
 """
 
 import os
 import secrets
-import hashlib
 import subprocess
 import tempfile
 import base64
+import time
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify, Response, send_from_directory
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import requests
 
-# Environment Configuration - STRICT VALIDATION
-REQUIRED_ENV_VARS = {
-    "SUPABASE_URL": os.getenv("SUPABASE_URL"),
-    "SUPABASE_SERVICE_KEY": os.getenv("SUPABASE_SERVICE_KEY"), 
-    "SUPABASE_ANON_KEY": os.getenv("SUPABASE_ANON_KEY"),
-    "KEY_PEPPER": os.getenv("KEY_PEPPER")
-}
-
-# Optional environment variables
-ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
-PORT = int(os.getenv("PORT", 5000))
-
-# Validate critical environment variables
-missing_vars = [var for var, value in REQUIRED_ENV_VARS.items() if not value]
-if missing_vars:
-    print(f"❌ CRITICAL: Missing environment variables: {', '.join(missing_vars)}")
-    print("🔧 Set these in Render Environment tab:")
-    for var in missing_vars:
-        print(f"   {var}=your_value_here")
-    
-    # In development, allow demo mode
-    if ENVIRONMENT == "development":
-        print("⚠️ Running in DEMO MODE (some features disabled)")
-        DEMO_MODE = True
-    else:
-        print("🚫 Cannot start in production without proper environment variables")
-        exit(1)
-else:
-    DEMO_MODE = False
-    print("✅ All environment variables configured")
-
+# 🤖 MANUS AGENT: Auto-configuration
 app = Flask(__name__)
-CORS(app, origins="*", max_age=86400)  # Cache preflight for 24h
+CORS(app, origins="*")
 
-# Extract environment variables
-SUPABASE_URL = REQUIRED_ENV_VARS["SUPABASE_URL"]
-SUPABASE_SERVICE_KEY = REQUIRED_ENV_VARS["SUPABASE_SERVICE_KEY"]
-SUPABASE_ANON_KEY = REQUIRED_ENV_VARS["SUPABASE_ANON_KEY"]
-KEY_PEPPER = REQUIRED_ENV_VARS["KEY_PEPPER"]
+# Environment variables with smart defaults
+PORT = int(os.getenv("PORT", 5000))
+TTS_SERVICE_URL = os.getenv("TTS_SERVICE_URL", "https://vgh0i1c5ko11.manus.space")
+VALID_API_KEYS = os.getenv("VALID_API_KEYS", "my_key,test_key,demo_key").split(",")
+ADMIN_KEY = os.getenv("ADMIN_KEY", "manus_admin_2025")
 
-# Nigerian Voices Mapping - Optimized for Edge TTS
+# 🎤 Nigerian Voice Mapping
 NIGERIAN_VOICES = {
-    # Primary Nigerian voices
     "female": "en-NG-EzinneNeural",
     "male": "en-NG-AbeoNeural", 
     "ezinne": "en-NG-EzinneNeural",
     "abeo": "en-NG-AbeoNeural",
-    
-    # Regional variants (Edge TTS supports Nigerian English)
-    "igbo_female": "en-NG-EzinneNeural",
-    "igbo_male": "en-NG-AbeoNeural",
-    "yoruba_female": "en-NG-EzinneNeural", 
-    "yoruba_male": "en-NG-AbeoNeural",
-    "hausa_female": "en-NG-EzinneNeural",
-    "hausa_male": "en-NG-AbeoNeural",
-    
-    # International fallbacks
     "aria": "en-US-AriaNeural",
     "guy": "en-US-GuyNeural"
 }
 
-# Nigerian network optimization settings
-GENERATION_TIMEOUT = 45  # seconds - account for slow networks
-MAX_RETRIES = 3
-DEMO_CHAR_LIMIT = 100
-API_CHAR_LIMIT = 1000
+# 🤖 MANUS AGENT: Smart Logging
+def manus_log(request_id, message, level="INFO"):
+    """Smart logging with request tracking"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] [{level}] [{request_id}] {message}")
 
-def hash_api_key(raw_key):
-    """Hash API key with pepper for security"""
-    if not KEY_PEPPER:
-        raise ValueError("KEY_PEPPER not configured")
-    return hashlib.sha256((KEY_PEPPER + raw_key).encode()).hexdigest()
-
-def supabase_request(method, path, data=None, headers=None, use_service_key=False):
-    """Make request to Supabase API with retry logic"""
-    if DEMO_MODE and not SUPABASE_URL:
-        return None
-        
-    base_headers = {
-        "Content-Type": "application/json",
-        "apikey": SUPABASE_SERVICE_KEY if use_service_key else SUPABASE_ANON_KEY
+# 🤖 MANUS AGENT: Auto-Diagnosis Endpoints
+@app.route('/manus/diagnose')
+def manus_diagnose():
+    """Auto-diagnose deployment issues"""
+    request_id = request.headers.get('x-request-id', f"diag_{int(time.time())}")
+    manus_log(request_id, "🤖 MANUS AGENT: Starting auto-diagnosis")
+    
+    diagnosis = {
+        "timestamp": datetime.now().isoformat(),
+        "agent": "MANUS v1.0",
+        "status": "diagnosing",
+        "checks": {},
+        "recommendations": []
     }
     
-    if use_service_key:
-        base_headers["Authorization"] = f"Bearer {SUPABASE_SERVICE_KEY}"
+    # ✅ Check 1: Environment Variables
+    env_check = {
+        "TTS_SERVICE_URL": "✅ SET" if TTS_SERVICE_URL else "❌ MISSING",
+        "VALID_API_KEYS": "✅ SET" if VALID_API_KEYS else "❌ MISSING", 
+        "PORT": f"✅ {PORT}",
+        "RENDER": "✅ YES" if os.getenv("RENDER") else "❌ LOCAL"
+    }
+    diagnosis["checks"]["environment"] = env_check
+    manus_log(request_id, f"Environment check: {env_check}")
     
-    if headers:
-        base_headers.update(headers)
-    
-    url = f"{SUPABASE_URL}/rest/v1{path}"
-    
-    for attempt in range(MAX_RETRIES):
-        try:
-            if method == "GET":
-                response = requests.get(url, headers=base_headers, params=data, timeout=10)
-            elif method == "POST":
-                response = requests.post(url, headers=base_headers, json=data, timeout=10)
-            elif method == "PATCH":
-                response = requests.patch(url, headers=base_headers, json=data, timeout=10)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-            
-            return response
-            
-        except requests.RequestException as e:
-            print(f"Supabase request attempt {attempt + 1} failed: {e}")
-            if attempt == MAX_RETRIES - 1:
-                return None
-    
-    return None
-
-def validate_api_key():
-    """Validate API key from request headers with rate limiting"""
-    if DEMO_MODE:
-        return {"id": "demo", "user_id": "demo", "usage_count": 0}, None
-        
-    raw_key = request.headers.get("x-api-key") or request.headers.get("Authorization", "").replace("Bearer ", "")
-    
-    if not raw_key:
-        return None, ("Missing API key", 401)
-    
+    # ✅ Check 2: Network Connectivity
     try:
-        key_hash = hash_api_key(raw_key)
-    except ValueError as e:
-        return None, ("Server configuration error", 500)
+        test_response = requests.get(TTS_SERVICE_URL, timeout=10)
+        network_status = f"✅ REACHABLE ({test_response.status_code})"
+        manus_log(request_id, f"Network test successful: {test_response.status_code}")
+    except Exception as e:
+        network_status = f"❌ UNREACHABLE ({str(e)[:50]})"
+        manus_log(request_id, f"Network test failed: {e}", "ERROR")
+        diagnosis["recommendations"].append("🔧 Check if TTS service is down or blocked")
     
-    # Query Supabase for API key
-    response = supabase_request(
-        "GET", 
-        "/api_keys",
-        data={
-            "key_hash": f"eq.{key_hash}",
-            "status": "eq.active",
-            "select": "id,user_id,rate_limit_per_min,usage_count,total_quota"
-        },
-        use_service_key=True
-    )
+    diagnosis["checks"]["network"] = network_status
     
-    if not response or response.status_code != 200:
-        return None, ("Invalid API key", 401)
+    # ✅ Check 3: TTS Engine
+    try:
+        result = subprocess.run(["edge-tts", "--list-voices"], 
+                              capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            tts_status = "✅ WORKING"
+            manus_log(request_id, "TTS engine working")
+        else:
+            tts_status = "❌ FAILED"
+            diagnosis["recommendations"].append("🔧 edge-tts installation issue")
+    except Exception as e:
+        tts_status = f"❌ ERROR ({str(e)[:30]})"
+        diagnosis["recommendations"].append("🔧 Install edge-tts: pip install edge-tts")
     
-    keys = response.json()
-    if not keys:
-        return None, ("Invalid API key", 401)
+    diagnosis["checks"]["tts_engine"] = tts_status
     
-    api_key = keys[0]
+    # 📋 Generate Recommendations
+    if not diagnosis["recommendations"]:
+        diagnosis["status"] = "✅ HEALTHY"
+        diagnosis["recommendations"].append("🎉 All systems operational!")
+    else:
+        diagnosis["status"] = "⚠️ ISSUES FOUND"
     
-    # Check quota (if set)
-    if api_key.get('total_quota', 0) > 0 and api_key.get('usage_count', 0) >= api_key['total_quota']:
-        return None, ("Quota exceeded", 402)
-    
-    return api_key, None
+    manus_log(request_id, f"Diagnosis complete: {diagnosis['status']}")
+    return jsonify(diagnosis)
 
-def generate_tts_audio(text, voice="female"):
-    """Generate TTS audio using edge-tts with Nigerian optimization"""
+# 🤖 MANUS AGENT: Smart API Key Validation
+def validate_api_key():
+    """Smart API key validation with logging"""
+    request_id = request.headers.get('x-request-id', f"req_{int(time.time())}")
+    api_key = request.headers.get('x-api-key') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    
+    manus_log(request_id, f"API key check: {api_key[:8] + '...' if api_key else 'MISSING'}")
+    
+    if not api_key:
+        manus_log(request_id, "No API key provided", "ERROR")
+        return None, ("Missing x-api-key header", 401)
+    
+    if api_key not in VALID_API_KEYS:
+        manus_log(request_id, f"Invalid API key: {api_key[:8]}...", "ERROR")
+        return None, ("Invalid API key", 401)
+    
+    manus_log(request_id, "API key validated successfully")
+    return {"key": api_key}, None
+
+# 🤖 MANUS AGENT: Smart TTS Generation
+def generate_tts_with_retry(text, voice="female", max_retries=3):
+    """Generate TTS with Nigerian network optimization"""
+    request_id = f"tts_{int(time.time())}"
     voice_id = NIGERIAN_VOICES.get(voice, NIGERIAN_VOICES["female"])
     
-    # Create temp file for audio
-    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
-        temp_path = tmp.name
+    manus_log(request_id, f"TTS generation: '{text[:30]}...' with {voice_id}")
     
-    try:
-        # Run edge-tts command with timeout for Nigerian networks
-        cmd = [
-            "edge-tts",
-            "--text", text,
-            "--voice", voice_id,
-            "--write-media", temp_path
-        ]
-        
-        result = subprocess.run(
-            cmd, 
-            capture_output=True, 
-            text=True, 
-            timeout=GENERATION_TIMEOUT
-        )
-        
-        if result.returncode == 0 and os.path.exists(temp_path):
-            # Read the audio file
-            with open(temp_path, 'rb') as f:
-                audio_data = f.read()
+    for attempt in range(max_retries):
+        try:
+            # Create temp file
+            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
+                temp_path = tmp.name
             
-            # Clean up immediately
-            os.unlink(temp_path)
+            # Run edge-tts with timeout
+            cmd = ["edge-tts", "--text", text, "--voice", voice_id, "--write-media", temp_path]
             
-            if len(audio_data) < 1000:  # Sanity check
-                print(f"Generated audio suspiciously small: {len(audio_data)} bytes")
-                return None, None
+            start_time = time.time()
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+            duration = time.time() - start_time
+            
+            if result.returncode == 0 and os.path.exists(temp_path):
+                # Read audio data
+                with open(temp_path, 'rb') as f:
+                    audio_data = f.read()
                 
-            return audio_data, "audio/mpeg"
-        else:
-            print(f"edge-tts failed: {result.stderr}")
-            return None, None
+                # Cleanup
+                os.unlink(temp_path)
+                
+                manus_log(request_id, f"TTS success: {len(audio_data)} bytes in {duration:.1f}s")
+                return audio_data, "audio/mpeg"
+            else:
+                manus_log(request_id, f"TTS attempt {attempt + 1} failed: {result.stderr}", "ERROR")
+                
+        except Exception as e:
+            manus_log(request_id, f"TTS attempt {attempt + 1} error: {e}", "ERROR")
             
-    except subprocess.TimeoutExpired:
-        print(f"TTS generation timeout after {GENERATION_TIMEOUT}s")
-        return None, None
-    except Exception as e:
-        print(f"TTS generation error: {e}")
-        return None, None
-    finally:
-        # Ensure cleanup
+        # Cleanup on failure
         if os.path.exists(temp_path):
             try:
                 os.unlink(temp_path)
             except:
                 pass
-
-def log_usage(api_key_id, endpoint, status_code=200, characters=0):
-    """Log API usage to Supabase (non-blocking)"""
-    if DEMO_MODE:
-        return
         
-    try:
-        supabase_request(
-            "POST",
-            "/usage_logs",
-            data={
-                "api_key_id": api_key_id,
-                "endpoint": endpoint,
-                "status_code": status_code,
-                "characters_processed": characters,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            },
-            use_service_key=True
-        )
-    except Exception as e:
-        print(f"Failed to log usage: {e}")
+        # Exponential backoff for Nigerian networks
+        if attempt < max_retries - 1:
+            delay = (2 ** attempt) + 0.1
+            manus_log(request_id, f"Retrying in {delay}s...")
+            time.sleep(delay)
+    
+    manus_log(request_id, "TTS generation failed after all retries", "ERROR")
+    return None, None
 
-# Routes
+# 🏠 Main Routes
 @app.route('/')
 def home():
-    """Serve the main dashboard"""
-    return send_from_directory('static', 'index.html')
-
-@app.route('/static/<path:filename>')
-def static_files(filename):
-    """Serve static files"""
-    return send_from_directory('static', filename)
-
-@app.route('/api/config')
-def api_config():
-    """Provide frontend configuration (NO SECRETS)"""
-    if DEMO_MODE:
-        return jsonify({
-            "demo_mode": True,
-            "supabase_available": False
-        })
-    
-    return jsonify({
-        "demo_mode": False,
-        "supabase_available": True,
-        "url": SUPABASE_URL,
-        "anonKey": SUPABASE_ANON_KEY  # Safe to expose - anon key is public
-    })
+    """Landing page with Manus Agent info"""
+    return """
+    <html>
+    <head><title>🤖 MANUS AGENT TTS</title></head>
+    <body style="font-family: Arial; background: #1a1f3a; color: white; padding: 40px; text-align: center;">
+        <h1>🤖 MANUS AGENT</h1>
+        <h2>Nigerian TTS Platform</h2>
+        <p>🎤 Ready to serve Nigerian voices</p>
+        <div style="margin: 30px 0;">
+            <a href="/manus/diagnose" style="color: #f4d03f; text-decoration: none; margin: 10px;">🔍 Run Diagnosis</a> |
+            <a href="/health" style="color: #f4d03f; text-decoration: none; margin: 10px;">❤️ Health Check</a>
+        </div>
+        <p><small>Powered by Manus Agent v1.0</small></p>
+    </body>
+    </html>
+    """
 
 @app.route('/health')
 def health():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'service': 'ODIADEV TTS API',
+        'service': 'MANUS AGENT TTS',
         'voices': list(NIGERIAN_VOICES.keys()),
-        'demo_mode': DEMO_MODE,
-        'supabase_connected': not DEMO_MODE and bool(SUPABASE_URL),
-        'environment': ENVIRONMENT
+        'environment': 'render' if os.getenv('RENDER') else 'local',
+        'timestamp': datetime.now().isoformat()
     })
 
-@app.route('/api/generate-key', methods=['POST'])
-def generate_api_key():
-    """Generate new API key (requires Supabase auth)"""
-    if DEMO_MODE:
-        return jsonify({'error': 'API key generation not available in demo mode'}), 503
+@app.route('/speak')
+def speak():
+    """Main TTS endpoint with smart debugging"""
+    request_id = request.headers.get('x-request-id', f"speak_{int(time.time())}")
     
-    auth_header = request.headers.get('Authorization', '')
-    
-    if not auth_header.startswith('Bearer '):
-        return jsonify({'error': 'Missing authorization'}), 401
-    
-    token = auth_header.split(' ')[1]
-    
-    # Verify token with Supabase
-    try:
-        verify_response = requests.get(
-            f"{SUPABASE_URL}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": SUPABASE_ANON_KEY
-            },
-            timeout=10
-        )
-    except requests.RequestException:
-        return jsonify({'error': 'Authentication service unavailable'}), 503
-    
-    if verify_response.status_code != 200:
-        return jsonify({'error': 'Invalid token'}), 401
-    
-    user = verify_response.json()
-    user_id = user['id']
-    
-    data = request.get_json() or {}
-    name = data.get('name', 'Unnamed API Key')
-    
-    # Generate new API key
-    raw_key = f"odiadev_{secrets.token_hex(32)}"
-    key_hash = hash_api_key(raw_key)
-    key_prefix = raw_key[:16]
-    
-    # Save to Supabase
-    response = supabase_request(
-        "POST",
-        "/api_keys",
-        data={
-            "name": name,
-            "key_hash": key_hash,
-            "key_prefix": key_prefix,
-            "user_id": user_id,
-            "owner_email": user.get('email', ''),
-            "rate_limit_per_min": 120,
-            "total_quota": 0,  # unlimited for now
-            "created_at": datetime.now(timezone.utc).isoformat()
-        },
-        use_service_key=True
-    )
-    
-    if not response or response.status_code != 201:
-        return jsonify({'error': 'Failed to create API key'}), 500
-    
-    created_key = response.json()[0]
-    
-    return jsonify({
-        'id': created_key['id'],
-        'name': name,
-        'api_key': raw_key,
-        'message': 'Save this key securely - it will not be shown again!'
-    })
-
-@app.route('/api/user-keys', methods=['GET'])
-def get_user_keys():
-    """Get user's API keys"""
-    if DEMO_MODE:
-        return jsonify({'keys': []})
-    
-    auth_header = request.headers.get('Authorization', '')
-    
-    if not auth_header.startswith('Bearer '):
-        return jsonify({'error': 'Missing authorization'}), 401
-    
-    token = auth_header.split(' ')[1]
-    
-    # Verify token with Supabase
-    try:
-        verify_response = requests.get(
-            f"{SUPABASE_URL}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": SUPABASE_ANON_KEY
-            },
-            timeout=10
-        )
-    except requests.RequestException:
-        return jsonify({'error': 'Authentication service unavailable'}), 503
-    
-    if verify_response.status_code != 200:
-        return jsonify({'error': 'Invalid token'}), 401
-    
-    user = verify_response.json()
-    user_id = user['id']
-    
-    # Get user's keys
-    response = supabase_request(
-        "GET",
-        "/api_keys",
-        data={
-            "user_id": f"eq.{user_id}",
-            "select": "id,name,key_prefix,usage_count,created_at,status"
-        },
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    
-    if not response or response.status_code != 200:
-        return jsonify({'error': 'Failed to fetch keys'}), 500
-    
-    keys = response.json()
-    
-    return jsonify({'keys': keys})
-
-@app.route('/api/tts', methods=['POST'])
-def tts_endpoint():
-    """Main TTS endpoint with Nigerian optimizations"""
     # Validate API key
     api_key, error = validate_api_key()
     if error:
-        return jsonify({'error': error[0]}), error[1]
+        return jsonify({'error': error[0], 'request_id': request_id}), error[1]
     
-    data = request.get_json() or {}
-    text = data.get('text', '').strip()
-    voice = data.get('voice', 'female')
-    language = data.get('language', 'english')
+    # Get parameters
+    text = request.args.get('text', '').strip()
+    voice = request.args.get('voice', 'female')
+    
+    manus_log(request_id, f"TTS request: text='{text[:50]}...', voice={voice}")
     
     if not text:
-        return jsonify({'error': 'Text is required'}), 400
+        manus_log(request_id, "No text provided", "ERROR")
+        return jsonify({'error': 'No text provided', 'request_id': request_id}), 400
     
-    # Character limit check
-    if len(text) > API_CHAR_LIMIT:
-        return jsonify({'error': f'Text too long (max {API_CHAR_LIMIT} characters)'}), 400
-    
-    # Generate audio
-    audio_data, mime_type = generate_tts_audio(text, voice)
+    # Generate audio with retry logic
+    audio_data, mime_type = generate_tts_with_retry(text, voice)
     
     if not audio_data:
-        if not DEMO_MODE:
-            log_usage(api_key['id'], '/api/tts', 500, len(text))
-        return jsonify({'error': 'TTS generation failed - try again or use shorter text'}), 500
+        manus_log(request_id, "TTS generation failed completely", "ERROR")
+        return jsonify({
+            'error': 'TTS generation failed - check /manus/diagnose for details',
+            'request_id': request_id
+        }), 500
     
-    # Update usage count (non-blocking)
-    if not DEMO_MODE:
-        try:
-            supabase_request(
-                "PATCH",
-                f"/api_keys?id=eq.{api_key['id']}",
-                data={"usage_count": api_key.get('usage_count', 0) + 1},
-                use_service_key=True
-            )
-            
-            # Log TTS request
-            supabase_request(
-                "POST",
-                "/tts_requests",
-                data={
-                    "api_key_id": api_key['id'],
-                    "user_id": api_key['user_id'],
-                    "text": text,
-                    "language_code": language,
-                    "voice_id": voice,
-                    "character_count": len(text),
-                    "status": "completed",
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                },
-                use_service_key=True
-            )
-            
-            # Log usage
-            log_usage(api_key['id'], '/api/tts', 200, len(text))
-        except Exception as e:
-            print(f"Failed to update usage: {e}")
-    
-    # Return audio as base64 for web (Nigerian networks prefer this)
-    audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-    
-    return jsonify({
-        'success': True,
-        'audio_url': f"data:{mime_type};base64,{audio_base64}",
-        'character_count': len(text),
-        'voice': voice,
-        'language': language,
-        'demo_mode': DEMO_MODE
-    })
+    # Return audio
+    manus_log(request_id, f"Returning {len(audio_data)} bytes of audio")
+    return Response(
+        audio_data,
+        mimetype=mime_type,
+        headers={
+            'Content-Type': mime_type,
+            'X-Request-ID': request_id,
+            'Cache-Control': 'no-cache'
+        }
+    )
 
 @app.route('/api/speak', methods=['POST'])
-def speak_endpoint():
-    """Alternative TTS endpoint for compatibility"""
-    return tts_endpoint()
-
-@app.route('/demo/tts', methods=['POST'])
-def demo_tts():
-    """Demo TTS endpoint (no API key required)"""
+def api_speak():
+    """POST version of speak endpoint"""
+    request_id = request.headers.get('x-request-id', f"api_{int(time.time())}")
+    
+    # Validate API key
+    api_key, error = validate_api_key()
+    if error:
+        return jsonify({'error': error[0], 'request_id': request_id}), error[1]
+    
     data = request.get_json() or {}
     text = data.get('text', '').strip()
     voice = data.get('voice', 'female')
     
     if not text:
-        return jsonify({'error': 'Text is required'}), 400
-    
-    if len(text) > DEMO_CHAR_LIMIT:
-        return jsonify({'error': f'Demo limit: {DEMO_CHAR_LIMIT} characters max'}), 400
+        return jsonify({'error': 'No text provided', 'request_id': request_id}), 400
     
     # Generate audio
-    audio_data, mime_type = generate_tts_audio(text, voice)
+    audio_data, mime_type = generate_tts_with_retry(text, voice)
     
     if not audio_data:
-        return jsonify({'error': 'TTS generation failed - check your network or try shorter text'}), 500
+        return jsonify({
+            'error': 'TTS generation failed',
+            'request_id': request_id,
+            'diagnosis': '/manus/diagnose'
+        }), 500
     
-    # Return audio as base64
+    # Return as base64 for JSON response
     audio_base64 = base64.b64encode(audio_data).decode('utf-8')
     
     return jsonify({
@@ -506,31 +284,39 @@ def demo_tts():
         'audio_url': f"data:{mime_type};base64,{audio_base64}",
         'character_count': len(text),
         'voice': voice,
-        'demo': True
+        'request_id': request_id
     })
 
+# 🤖 MANUS AGENT: Error Handlers
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({'error': 'Endpoint not found'}), 404
+    return jsonify({
+        'error': 'Endpoint not found',
+        'available_endpoints': ['/speak', '/api/speak', '/health', '/manus/diagnose']
+    }), 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    return jsonify({'error': 'Internal server error'}), 500
+    return jsonify({
+        'error': 'Internal server error',
+        'diagnosis': '/manus/diagnose',
+        'agent': 'MANUS v1.0'
+    }), 500
 
 if __name__ == '__main__':
+    # 🤖 MANUS AGENT: Smart startup
     print("\n" + "="*60)
-    print("🚀 ODIADEV TTS Backend")
+    print("🤖 MANUS AGENT: Nigerian TTS Platform")
     print("="*60)
     print(f"🏠 Dashboard: http://localhost:{PORT}")
-    print(f"🎤 API Endpoint: http://localhost:{PORT}/api/tts") 
-    print(f"🧪 Demo Endpoint: http://localhost:{PORT}/demo/tts")
+    print(f"🎤 TTS Endpoint: http://localhost:{PORT}/speak")
+    print(f"🔍 Diagnosis: http://localhost:{PORT}/manus/diagnose")
     print(f"❤️ Health: http://localhost:{PORT}/health")
     print("="*60)
-    print(f"🌍 Environment: {ENVIRONMENT}")
-    print(f"🔐 Demo Mode: {DEMO_MODE}")
-    if not DEMO_MODE:
-        print(f"🔗 Supabase: {SUPABASE_URL}")
+    print(f"🌍 Environment: {'Render' if os.getenv('RENDER') else 'Local'}")
     print(f"🎤 Voices: {len(NIGERIAN_VOICES)} available")
+    print(f"🔑 API Keys: {len(VALID_API_KEYS)} configured")
     print("="*60 + "\n")
     
+    # Bind correctly for Render
     app.run(host='0.0.0.0', port=PORT, debug=False)

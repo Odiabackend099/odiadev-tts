@@ -1,24 +1,18 @@
 services:
   - type: web
-    name: odiadev-tts-production
+    name: manus-agent-tts
     runtime: python
-    plan: starter  # Upgrade from free for production
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: SUPABASE_URL
-        sync: false  # Set manually in dashboard
-      - key: SUPABASE_SERVICE_KEY
-        sync: false  # CRITICAL: Set manually
-      - key: SUPABASE_ANON_KEY
-        sync: false  # Set manually
-      - key: KEY_PEPPER
-        generateValue: true
+      - key: TTS_SERVICE_URL
+        value: https://vgh0i1c5ko11.manus.space
+      - key: VALID_API_KEYS
+        value: my_key,test_key,demo_key
       - key: ADMIN_KEY
         generateValue: true
-      - key: ENVIRONMENT
-        value: production
     healthCheckPath: /health
     autoDeploy: true
