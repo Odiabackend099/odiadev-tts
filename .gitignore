@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 *.so
 .Python
+env/
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -21,35 +24,36 @@ wheels/
 *.egg
 
 # Virtual Environment
-venv/
-env/
-ENV/
-.venv
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Environment Variables
-.env
-.env.local
-.env.production
+bin/
+include/
+pip-selfcheck.json
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Temporary files
-*.tmp
-temp_audio_*.mp3
-test*.mp3
+# Project specific
+*.mp3
+*.wav
+*.m4a
+test_*.mp3
+temp_*.mp3
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # Logs
 *.log
