@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-MANUS AGENT: Self-Diagnosing Nigerian TTS API
-Auto-debugs Render deployment issues and fixes them
+MANUS AGENT: Fixed Nigerian TTS API
+SINGLE STRATEGY: Pure edge-tts with proper error handling
 """
 
 import os
@@ -10,10 +10,10 @@ import subprocess
 import tempfile
 import base64
 import time
+import json
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
-import requests
 
 # 🤖 MANUS AGENT: Auto-configuration
 app = Flask(__name__)
@@ -21,85 +21,125 @@ CORS(app, origins="*")
 
 # Environment variables with smart defaults
 PORT = int(os.getenv("PORT", 5000))
-TTS_SERVICE_URL = os.getenv("TTS_SERVICE_URL", "https://vgh0i1c5ko11.manus.space")
 VALID_API_KEYS = os.getenv("VALID_API_KEYS", "my_key,test_key,demo_key").split(",")
 ADMIN_KEY = os.getenv("ADMIN_KEY", "manus_admin_2025")
 
-# 🎤 Nigerian Voice Mapping
+# 🎤 Nigerian Voice Mapping (ONLY edge-tts voices)
 NIGERIAN_VOICES = {
     "female": "en-NG-EzinneNeural",
     "male": "en-NG-AbeoNeural", 
     "ezinne": "en-NG-EzinneNeural",
     "abeo": "en-NG-AbeoNeural",
     "aria": "en-US-AriaNeural",
-    "guy": "en-US-GuyNeural"
+    "guy": "en-US-GuyNeural",
+    "jenny": "en-US-JennyNeural"
 }
 
-# 🤖 MANUS AGENT: Smart Logging
+# 🤖 MANUS AGENT: Enhanced Logging
 def manus_log(request_id, message, level="INFO"):
     """Smart logging with request tracking"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] [{level}] [{request_id}] {message}")
 
-# 🤖 MANUS AGENT: Auto-Diagnosis Endpoints
+# 🤖 MANUS AGENT: REAL Diagnosis with Audio Testing
 @app.route('/manus/diagnose')
 def manus_diagnose():
-    """Auto-diagnose deployment issues"""
-    request_id = request.headers.get('x-request-id', f"diag_{int(time.time())}")
-    manus_log(request_id, "🤖 MANUS AGENT: Starting auto-diagnosis")
+    """REAL auto-diagnosis with actual TTS testing"""
+    request_id = f"diag_{int(time.time())}"
+    manus_log(request_id, "🤖 MANUS AGENT: Starting REAL diagnosis")
     
     diagnosis = {
         "timestamp": datetime.now().isoformat(),
-        "agent": "MANUS v1.0",
+        "agent": "MANUS v2.0 - FIXED",
         "status": "diagnosing",
         "checks": {},
-        "recommendations": []
+        "recommendations": [],
+        "test_results": {}
     }
     
     # ✅ Check 1: Environment Variables
     env_check = {
-        "TTS_SERVICE_URL": "✅ SET" if TTS_SERVICE_URL else "❌ MISSING",
         "VALID_API_KEYS": "✅ SET" if VALID_API_KEYS else "❌ MISSING", 
         "PORT": f"✅ {PORT}",
-        "RENDER": "✅ YES" if os.getenv("RENDER") else "❌ LOCAL"
+        "RENDER": "✅ YES" if os.getenv("RENDER") else "❌ LOCAL",
+        "PYTHON_VERSION": os.getenv("PYTHON_VERSION", "Unknown")
     }
     diagnosis["checks"]["environment"] = env_check
     manus_log(request_id, f"Environment check: {env_check}")
     
-    # ✅ Check 2: Network Connectivity
+    # ✅ Check 2: Edge-TTS Installation
+    edge_tts_status = "❌ NOT INSTALLED"
     try:
-        test_response = requests.get(TTS_SERVICE_URL, timeout=10)
-        network_status = f"✅ REACHABLE ({test_response.status_code})"
-        manus_log(request_id, f"Network test successful: {test_response.status_code}")
-    except Exception as e:
-        network_status = f"❌ UNREACHABLE ({str(e)[:50]})"
-        manus_log(request_id, f"Network test failed: {e}", "ERROR")
-        diagnosis["recommendations"].append("🔧 Check if TTS service is down or blocked")
-    
-    diagnosis["checks"]["network"] = network_status
-    
-    # ✅ Check 3: TTS Engine
-    try:
-        result = subprocess.run(["edge-tts", "--list-voices"], 
-                              capture_output=True, text=True, timeout=5)
+        result = subprocess.run(["edge-tts", "--version"], 
+                              capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
-            tts_status = "✅ WORKING"
-            manus_log(request_id, "TTS engine working")
+            edge_tts_status = f"✅ INSTALLED ({result.stdout.strip()})"
+            manus_log(request_id, "edge-tts installation verified")
         else:
-            tts_status = "❌ FAILED"
-            diagnosis["recommendations"].append("🔧 edge-tts installation issue")
-    except Exception as e:
-        tts_status = f"❌ ERROR ({str(e)[:30]})"
+            edge_tts_status = "❌ COMMAND FAILED"
+            diagnosis["recommendations"].append("🔧 edge-tts command failing")
+    except FileNotFoundError:
+        edge_tts_status = "❌ COMMAND NOT FOUND"
         diagnosis["recommendations"].append("🔧 Install edge-tts: pip install edge-tts")
+    except Exception as e:
+        edge_tts_status = f"❌ ERROR ({str(e)[:30]})"
+        diagnosis["recommendations"].append("🔧 edge-tts installation corrupted")
     
-    diagnosis["checks"]["tts_engine"] = tts_status
+    diagnosis["checks"]["edge_tts"] = edge_tts_status
     
-    # 📋 Generate Recommendations
-    if not diagnosis["recommendations"]:
-        diagnosis["status"] = "✅ HEALTHY"
-        diagnosis["recommendations"].append("🎉 All systems operational!")
+    # ✅ Check 3: ACTUAL TTS Generation Test
+    audio_test_status = "❌ NOT TESTED"
+    try:
+        manus_log(request_id, "Testing actual TTS generation...")
+        test_audio, test_mime = generate_tts_with_retry("Test diagnosis audio", "female")
+        
+        if test_audio and len(test_audio) > 1000:  # Reasonable MP3 size
+            audio_test_status = f"✅ WORKING ({len(test_audio)} bytes generated)"
+            diagnosis["test_results"]["audio_size"] = len(test_audio)
+            diagnosis["test_results"]["audio_format"] = test_mime
+            manus_log(request_id, f"TTS test successful: {len(test_audio)} bytes")
+        else:
+            audio_test_status = "❌ GENERATION FAILED"
+            diagnosis["recommendations"].append("🔧 TTS generation producing no/small output")
+    except Exception as e:
+        audio_test_status = f"❌ CRASHED ({str(e)[:50]})"
+        diagnosis["recommendations"].append(f"🔧 TTS crashed: {str(e)[:100]}")
+        manus_log(request_id, f"TTS test crashed: {e}", "ERROR")
+    
+    diagnosis["checks"]["tts_generation"] = audio_test_status
+    
+    # ✅ Check 4: Voice Availability Test
+    voices_available = []
+    for voice_name, voice_id in NIGERIAN_VOICES.items():
+        try:
+            # Quick test to see if voice exists
+            result = subprocess.run(
+                ["edge-tts", "--voice", voice_id, "--text", "test", "--write-media", "/dev/null"],
+                capture_output=True, timeout=5
+            )
+            if result.returncode == 0:
+                voices_available.append(voice_name)
+        except:
+            pass
+    
+    if voices_available:
+        diagnosis["checks"]["voices"] = f"✅ {len(voices_available)} working: {', '.join(voices_available[:3])}"
     else:
-        diagnosis["status"] = "⚠️ ISSUES FOUND"
+        diagnosis["checks"]["voices"] = "❌ NO VOICES WORKING"
+        diagnosis["recommendations"].append("🔧 No Nigerian voices available")
+    
+    # 📋 Generate Final Status
+    critical_checks = ["edge_tts", "tts_generation"]
+    failures = [check for check in critical_checks 
+               if diagnosis["checks"][check].startswith("❌")]
+    
+    if not failures:
+        diagnosis["status"] = "✅ FULLY OPERATIONAL"
+        if not diagnosis["recommendations"]:
+            diagnosis["recommendations"].append("🎉 All systems working perfectly!")
+    else:
+        diagnosis["status"] = f"❌ {len(failures)} CRITICAL FAILURES"
+        diagnosis["recommendations"].insert(0, f"🚨 Fix these: {', '.join(failures)}")
     
     manus_log(request_id, f"Diagnosis complete: {diagnosis['status']}")
     return jsonify(diagnosis)
@@ -123,53 +163,90 @@ def validate_api_key():
     manus_log(request_id, "API key validated successfully")
     return {"key": api_key}, None
 
-# 🤖 MANUS AGENT: Smart TTS Generation
+# 🤖 MANUS AGENT: FIXED TTS Generation (Pure edge-tts)
 def generate_tts_with_retry(text, voice="female", max_retries=3):
-    """Generate TTS with Nigerian network optimization"""
+    """Generate TTS using ONLY edge-tts with comprehensive error handling"""
     request_id = f"tts_{int(time.time())}"
     voice_id = NIGERIAN_VOICES.get(voice, NIGERIAN_VOICES["female"])
     
     manus_log(request_id, f"TTS generation: '{text[:30]}...' with {voice_id}")
     
     for attempt in range(max_retries):
+        temp_path = None
         try:
             # Create temp file
             with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
                 temp_path = tmp.name
             
-            # Run edge-tts with timeout
-            cmd = ["edge-tts", "--text", text, "--voice", voice_id, "--write-media", temp_path]
+            manus_log(request_id, f"Attempt {attempt + 1}: temp file {temp_path}")
+            
+            # Run edge-tts with comprehensive options
+            cmd = [
+                "edge-tts",
+                "--text", text,
+                "--voice", voice_id,
+                "--write-media", temp_path
+            ]
             
             start_time = time.time()
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=60  # Increased timeout for Render
+            )
             duration = time.time() - start_time
             
-            if result.returncode == 0 and os.path.exists(temp_path):
-                # Read audio data
-                with open(temp_path, 'rb') as f:
-                    audio_data = f.read()
-                
-                # Cleanup
-                os.unlink(temp_path)
-                
-                manus_log(request_id, f"TTS success: {len(audio_data)} bytes in {duration:.1f}s")
-                return audio_data, "audio/mpeg"
-            else:
-                manus_log(request_id, f"TTS attempt {attempt + 1} failed: {result.stderr}", "ERROR")
-                
-        except Exception as e:
-            manus_log(request_id, f"TTS attempt {attempt + 1} error: {e}", "ERROR")
+            manus_log(request_id, f"edge-tts completed in {duration:.1f}s, return code: {result.returncode}")
             
-        # Cleanup on failure
-        if os.path.exists(temp_path):
-            try:
-                os.unlink(temp_path)
-            except:
-                pass
+            if result.returncode != 0:
+                manus_log(request_id, f"edge-tts error: {result.stderr}", "ERROR")
+                continue
+            
+            # Verify file exists and has content
+            if not os.path.exists(temp_path):
+                manus_log(request_id, "Output file not created", "ERROR")
+                continue
+                
+            file_size = os.path.getsize(temp_path)
+            if file_size < 1000:  # Minimum reasonable MP3 size
+                manus_log(request_id, f"Output file too small: {file_size} bytes", "ERROR")
+                continue
+            
+            # Read audio data
+            with open(temp_path, 'rb') as f:
+                audio_data = f.read()
+            
+            # Verify audio data
+            if len(audio_data) < 1000:
+                manus_log(request_id, f"Audio data too small: {len(audio_data)} bytes", "ERROR")
+                continue
+            
+            # Check for MP3 magic numbers
+            if not (audio_data[:3] == b'ID3' or 
+                   (audio_data[0] == 0xFF and (audio_data[1] & 0xE0) == 0xE0)):
+                manus_log(request_id, "Invalid MP3 format detected", "ERROR")
+                continue
+            
+            # Success!
+            manus_log(request_id, f"TTS SUCCESS: {len(audio_data)} bytes in {duration:.1f}s")
+            return audio_data, "audio/mpeg"
+            
+        except subprocess.TimeoutExpired:
+            manus_log(request_id, f"Attempt {attempt + 1}: timeout after 60s", "ERROR")
+        except Exception as e:
+            manus_log(request_id, f"Attempt {attempt + 1}: exception {e}", "ERROR")
+        finally:
+            # Always cleanup temp file
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
         
-        # Exponential backoff for Nigerian networks
+        # Exponential backoff for retries
         if attempt < max_retries - 1:
-            delay = (2 ** attempt) + 0.1
+            delay = (2 ** attempt) + 0.5
             manus_log(request_id, f"Retrying in {delay}s...")
             time.sleep(delay)
     
@@ -179,37 +256,70 @@ def generate_tts_with_retry(text, voice="female", max_retries=3):
 # 🏠 Main Routes
 @app.route('/')
 def home():
-    """Landing page with Manus Agent info"""
-    return """
+    """Landing page with enhanced info"""
+    return f"""
     <html>
-    <head><title>🤖 MANUS AGENT TTS</title></head>
+    <head><title>🤖 MANUS AGENT TTS v2.0</title></head>
     <body style="font-family: Arial; background: #1a1f3a; color: white; padding: 40px; text-align: center;">
-        <h1>🤖 MANUS AGENT</h1>
-        <h2>Nigerian TTS Platform</h2>
-        <p>🎤 Ready to serve Nigerian voices</p>
+        <h1>🤖 MANUS AGENT v2.0</h1>
+        <h2>Nigerian TTS Platform - FIXED</h2>
+        <p>🎤 Pure edge-tts implementation</p>
         <div style="margin: 30px 0;">
-            <a href="/manus/diagnose" style="color: #f4d03f; text-decoration: none; margin: 10px;">🔍 Run Diagnosis</a> |
-            <a href="/health" style="color: #f4d03f; text-decoration: none; margin: 10px;">❤️ Health Check</a>
+            <a href="/manus/diagnose" style="color: #f4d03f; text-decoration: none; margin: 10px;">🔍 REAL Diagnosis</a> |
+            <a href="/health" style="color: #f4d03f; text-decoration: none; margin: 10px;">❤️ Health Check</a> |
+            <a href="/test" style="color: #f4d03f; text-decoration: none; margin: 10px;">🧪 Quick Test</a>
         </div>
-        <p><small>Powered by Manus Agent v1.0</small></p>
+        <p><small>Fixed Architecture • {len(NIGERIAN_VOICES)} Voices Available</small></p>
     </body>
     </html>
     """
 
 @app.route('/health')
 def health():
-    """Health check endpoint"""
+    """Enhanced health check"""
     return jsonify({
         'status': 'healthy',
-        'service': 'MANUS AGENT TTS',
+        'service': 'MANUS AGENT TTS v2.0 - FIXED',
         'voices': list(NIGERIAN_VOICES.keys()),
         'environment': 'render' if os.getenv('RENDER') else 'local',
+        'architecture': 'pure-edge-tts',
         'timestamp': datetime.now().isoformat()
     })
 
+@app.route('/test')
+def quick_test():
+    """Quick TTS test endpoint"""
+    request_id = f"test_{int(time.time())}"
+    
+    try:
+        # Generate a quick test
+        audio_data, mime_type = generate_tts_with_retry("MANUS AGENT test successful!", "female")
+        
+        if audio_data:
+            return Response(
+                audio_data,
+                mimetype=mime_type,
+                headers={
+                    'Content-Type': mime_type,
+                    'X-Request-ID': request_id,
+                    'X-Test-Status': 'SUCCESS'
+                }
+            )
+        else:
+            return jsonify({
+                'error': 'Test failed - check /manus/diagnose',
+                'request_id': request_id
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'error': f'Test crashed: {str(e)}',
+            'request_id': request_id
+        }), 500
+
 @app.route('/speak')
 def speak():
-    """Main TTS endpoint with smart debugging"""
+    """Fixed TTS endpoint"""
     request_id = request.headers.get('x-request-id', f"speak_{int(time.time())}")
     
     # Validate API key
@@ -227,14 +337,18 @@ def speak():
         manus_log(request_id, "No text provided", "ERROR")
         return jsonify({'error': 'No text provided', 'request_id': request_id}), 400
     
-    # Generate audio with retry logic
+    if len(text) > 1000:
+        return jsonify({'error': 'Text too long (max 1000 chars)', 'request_id': request_id}), 400
+    
+    # Generate audio
     audio_data, mime_type = generate_tts_with_retry(text, voice)
     
     if not audio_data:
         manus_log(request_id, "TTS generation failed completely", "ERROR")
         return jsonify({
             'error': 'TTS generation failed - check /manus/diagnose for details',
-            'request_id': request_id
+            'request_id': request_id,
+            'diagnosis_url': '/manus/diagnose'
         }), 500
     
     # Return audio
@@ -245,13 +359,14 @@ def speak():
         headers={
             'Content-Type': mime_type,
             'X-Request-ID': request_id,
+            'X-Audio-Size': str(len(audio_data)),
             'Cache-Control': 'no-cache'
         }
     )
 
 @app.route('/api/speak', methods=['POST'])
 def api_speak():
-    """POST version of speak endpoint"""
+    """POST version with JSON response"""
     request_id = request.headers.get('x-request-id', f"api_{int(time.time())}")
     
     # Validate API key
@@ -273,7 +388,7 @@ def api_speak():
         return jsonify({
             'error': 'TTS generation failed',
             'request_id': request_id,
-            'diagnosis': '/manus/diagnose'
+            'diagnosis_url': '/manus/diagnose'
         }), 500
     
     # Return as base64 for JSON response
@@ -284,6 +399,7 @@ def api_speak():
         'audio_url': f"data:{mime_type};base64,{audio_base64}",
         'character_count': len(text),
         'voice': voice,
+        'audio_size': len(audio_data),
         'request_id': request_id
     })
 
@@ -292,7 +408,8 @@ def api_speak():
 def not_found(error):
     return jsonify({
         'error': 'Endpoint not found',
-        'available_endpoints': ['/speak', '/api/speak', '/health', '/manus/diagnose']
+        'available_endpoints': ['/speak', '/api/speak', '/health', '/manus/diagnose', '/test'],
+        'agent': 'MANUS v2.0'
     }), 404
 
 @app.errorhandler(500)
@@ -300,22 +417,23 @@ def internal_error(error):
     return jsonify({
         'error': 'Internal server error',
         'diagnosis': '/manus/diagnose',
-        'agent': 'MANUS v1.0'
+        'agent': 'MANUS v2.0'
     }), 500
 
 if __name__ == '__main__':
-    # 🤖 MANUS AGENT: Smart startup
+    # 🤖 MANUS AGENT: Enhanced startup
     print("\n" + "="*60)
-    print("🤖 MANUS AGENT: Nigerian TTS Platform")
+    print("🤖 MANUS AGENT v2.0: Nigerian TTS Platform - FIXED")
     print("="*60)
     print(f"🏠 Dashboard: http://localhost:{PORT}")
     print(f"🎤 TTS Endpoint: http://localhost:{PORT}/speak")
-    print(f"🔍 Diagnosis: http://localhost:{PORT}/manus/diagnose")
-    print(f"❤️ Health: http://localhost:{PORT}/health")
+    print(f"🔍 REAL Diagnosis: http://localhost:{PORT}/manus/diagnose")
+    print(f"🧪 Quick Test: http://localhost:{PORT}/test")
     print("="*60)
     print(f"🌍 Environment: {'Render' if os.getenv('RENDER') else 'Local'}")
     print(f"🎤 Voices: {len(NIGERIAN_VOICES)} available")
     print(f"🔑 API Keys: {len(VALID_API_KEYS)} configured")
+    print(f"🏗️ Architecture: Pure edge-tts (FIXED)")
     print("="*60 + "\n")
     
     # Bind correctly for Render
